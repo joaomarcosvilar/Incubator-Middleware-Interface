@@ -2,6 +2,7 @@
 #include "esp_log.h"
 #include "stdio.h"
 
+#include "string.h"
 #include "driver/uart.h"
 #include "esp_mac.h"
 #include "esp_netif.h"
@@ -10,49 +11,85 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "freertos/semphr.h"
 #include "nvs_flash.h"
 #include <string.h>
 
 #include "espnow_manager.h"
 #include "files/fs_manager.h"
+#include "application/application.h"
 
 #define TAG "ESPNOW"
 
 #define ESPNOW_QUEUE_LEN 5
 
+#define ESPNOW_TASK_NAME "espnow task"
+#define ESPNOW_TASK_STACK_SIZE 1024 * 1
+#define ESPNOW_TASK_PRIOR 2
+
+#define ESPNOW_SEMAPHORE_TIMEOUT_TICKS 5 * 1000
 // D8:3B:DA:A4:06:9C
 static uint8_t g_espnow_manager_peer_mac[6] = {0xD8, 0x3B, 0xDA, 0xA4, 0x06, 0x9C};
 static QueueHandle_t espnow_queue;
+static TaskHandle_t espnow_task_handle;
+SemaphoreHandle_t espnow_sempr;
 
-esp_err_t espnow_manager_read_serial(void)
+typedef enum
 {
-    uint8_t buffer[128] = {0};
-    int len = 0;
-    while (1)
-    {
-        len += uart_read_bytes(UART_NUM_0, buffer + len, 128 - len - 1, pdMS_TO_TICKS(1000));
-        buffer[len] = '\0';
+    ESPNOW_ROUTINE_SEND = 0,
+    ESPNOW_ROUTINE_RECEIVED
+} espnow_routine_e;
 
-        char *newline = strchr((char *)buffer, '\n');
-        if (newline)
-        {
-            *newline = '\0';
-            break;
-        }
+typedef struct
+{
+    uint8_t *data;
+    uint32_t size;
+    espnow_routine_e routine;
+} espnow_queue_t;
+
+static app_data_sensors_t g_espnow_data = {0};
+
+esp_err_t espnow_data_lock(void)
+{
+    if (espnow_sempr == NULL)
+    {
+        return ESP_ERR_NOT_FOUND;
     }
 
-    ESP_LOGI(TAG, "MAC recebido: %s", buffer);
-
-    if (sscanf((char *)buffer, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-               &g_espnow_manager_peer_mac[0], &g_espnow_manager_peer_mac[1], &g_espnow_manager_peer_mac[2],
-               &g_espnow_manager_peer_mac[3], &g_espnow_manager_peer_mac[4], &g_espnow_manager_peer_mac[5]) != 6)
-
+    if (xSemaphoreTake(espnow_sempr, ESPNOW_SEMAPHORE_TIMEOUT_TICKS) != pdTRUE)
     {
-        ESP_LOGE(TAG, "Invalid MAC address");
-        return ESP_ERR_INVALID_ARG;
+        return ESP_ERR_TIMEOUT;
     }
-
     return ESP_OK;
+}
+
+esp_err_t espnow_data_unlock(void)
+{
+    if (espnow_sempr == NULL)
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+    xSemaphoreGive(espnow_sempr);
+    return ESP_OK;
+}
+
+esp_err_t espnow_data_update(uint8_t *buffer)
+{
+    esp_err_t ret = espnow_data_lock();
+    if(ret != ESP_OK)
+    {
+        return ret;
+    }
+
+    memcpy(&g_espnow_data, buffer, sizeof(g_espnow_data));
+    ESP_LOGI(TAG,"Sensor: \n hum=%.2f", g_espnow_data.hum);
+    for(int i = 0; i < TEMPERATURE_MAX_SENSOR_COUNT; i++)
+    {
+        ESP_LOGI(TAG,"temp[%d]=%.2f", i, g_espnow_data.temp[i]);
+    }
+
+    ret = espnow_data_unlock();
+    return ret;
 }
 
 void espnow_manager_send_cb(const uint8_t *mac_addr, esp_now_send_status_t status)
@@ -67,6 +104,39 @@ void espnow_manager_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t 
 {
     uint8_t *mac = recv_info->src_addr;
     printf("Received from MAC %02X:%02X:%02X:%02X:%02X:%02X: %.*s\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], len, (char *)data);
+    if (len < sizeof(espnow_queue_t))
+    {
+        ESP_LOGW(TAG, "Pacote inválido");
+        return;
+    }
+
+    espnow_queue_t item = {0};
+    item.data = malloc(len);
+    memcpy(item.data, data, len);
+    item.size = len;
+    item.routine = ESPNOW_ROUTINE_RECEIVED;
+
+    xQueueSend(espnow_queue, &item, 0);
+}
+
+void espnow_task(void *args)
+{
+    espnow_queue_t buffer = {0};
+    for (;;)
+    {
+        if (xQueueReceive(espnow_queue, &buffer, pdMS_TO_TICKS(100)) == pdPASS)
+        {
+            if (buffer.routine == ESPNOW_ROUTINE_SEND)
+            {
+                esp_now_send(g_espnow_manager_peer_mac, buffer.data, buffer.size);
+            }
+            else if (buffer.routine == ESPNOW_ROUTINE_RECEIVED)
+            {
+                espnow_data_update(buffer.data);
+            }
+            free(buffer.data);
+        }
+    }
 }
 
 esp_err_t espnow_manager_init(void)
@@ -168,15 +238,16 @@ esp_err_t espnow_manager_init(void)
     // Find mac address saved in file
     if (!(memcmp(g_espnow_manager_peer_mac, (uint8_t[6]){0}, 6)))
     {
-        res = fs_search(ROOT_STORAGE_PATH, ESPNOW_manager_FILE);
+        res = fs_search(ROOT_STORAGE_PATH, ESPNOW_FILE);
         if (res != ESP_ERR_NOT_FOUND)
         {
             printf("Mac address not found. Please, write a address MAC (AA:BB:CC:DD:EE:FF):");
-            res = espnow_manager_read_serial();
-            if (res != ESP_OK)
-            {
-                return res;
-            }
+            // TODO: stop initialization and wait cmd
+            // res = espnow_manager_read_serial();
+            // if (res != ESP_OK)
+            // {
+            //     return res;
+            // }
         }
         else if (res != ESP_OK)
         {
@@ -184,7 +255,7 @@ esp_err_t espnow_manager_init(void)
             return res;
         }
 
-        res = fs_read(ESPNOW_manager_FULL_PATH, 0, sizeof(g_espnow_manager_peer_mac), (uint8_t *)g_espnow_manager_peer_mac);
+        res = fs_read(ESPNOW_FULL_PATH, 0, sizeof(g_espnow_manager_peer_mac), (uint8_t *)g_espnow_manager_peer_mac);
         if (res != ESP_OK)
         {
             ESP_LOGE(TAG, "Failed to read file (E: %s)", esp_err_to_name(res));
@@ -206,17 +277,70 @@ esp_err_t espnow_manager_init(void)
         return res;
     }
 
-    // while (1)
-    // {
-    //     esp_now_send(g_espnow_manager_peer_mac, (uint8_t *)("Hello S3!"), 10);
-    //     vTaskDelay(pdMS_TO_TICKS(5000));
-    // }
-    // espnow_queue = xQueueCreate(ESPNOW_QUEUE_LEN, sizeof());
+    espnow_queue = xQueueCreate(ESPNOW_QUEUE_LEN, sizeof(espnow_queue_t));
+    if (espnow_queue == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to create queue");
+        return ESP_FAIL;
+    }
+
+    vSemaphoreCreateBinary(espnow_sempr);
+    if (espnow_sempr == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to init semphore");
+        return ESP_FAIL;
+    }
+    xSemaphoreGive(espnow_sempr);
+
+    BaseType_t xRet = xTaskCreate(espnow_task, ESPNOW_TASK_NAME, ESPNOW_TASK_STACK_SIZE, NULL, ESPNOW_TASK_PRIOR, &espnow_task_handle);
+    if (xRet != pdTRUE)
+    {
+        ESP_LOGE(TAG, "Failed to create task");
+        return ESP_FAIL;
+    }
 
     return ESP_OK;
 }
 
 esp_err_t espnow_manager_send(uint8_t *data, uint32_t len)
 {
+    uint8_t *buf_copy = malloc(len);
+    if (buf_copy == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for send buffer");
+        return ESP_ERR_NO_MEM;
+    }
+    memcpy(buf_copy, data, len);
+
+    espnow_queue_t buffer = {
+        .data = buf_copy,
+        .size = len,
+        .routine = ESPNOW_ROUTINE_SEND
+    };
+
+    if (xQueueSend(espnow_queue, &buffer, 0) != pdPASS)
+    {
+        ESP_LOGE(TAG, "Failed to send to queue");
+        free(buf_copy);  // liberar se falhar
+        return ESP_FAIL;
+    }
+
     return ESP_OK;
+}
+
+
+esp_err_t espnow_get_data(app_data_sensors_t *data)
+{
+    if (data == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    esp_err_t ret = espnow_data_lock();
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    memcpy(data, &g_espnow_data, sizeof(app_data_sensors_t));
+
+    ret = espnow_data_unlock();
+    return ret;
 }
