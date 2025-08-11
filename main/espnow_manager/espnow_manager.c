@@ -24,7 +24,7 @@
 #define ESPNOW_QUEUE_LEN 5
 
 #define ESPNOW_TASK_NAME "espnow task"
-#define ESPNOW_TASK_STACK_SIZE 1024 * 1
+#define ESPNOW_TASK_STACK_SIZE 1024 * 2
 #define ESPNOW_TASK_PRIOR 2
 
 #define ESPNOW_SEMAPHORE_TIMEOUT_TICKS 5 * 1000
@@ -82,11 +82,11 @@ esp_err_t espnow_data_update(uint8_t *buffer)
     }
 
     memcpy(&g_espnow_data, buffer, sizeof(g_espnow_data));
-    ESP_LOGI(TAG,"Sensor: \n hum=%.2f", g_espnow_data.hum);
-    for(int i = 0; i < TEMPERATURE_MAX_SENSOR_COUNT; i++)
-    {
-        ESP_LOGI(TAG,"temp[%d]=%.2f", i, g_espnow_data.temp[i]);
-    }
+    // ESP_LOGI(TAG,"Sensor: \n hum=%.2f", g_espnow_data.hum);
+    // for(int i = 0; i < TEMPERATURE_MAX_SENSOR_COUNT; i++)
+    // {
+    //     ESP_LOGI(TAG,"temp[%d]=%.2f", i, g_espnow_data.temp[i]);
+    // }
 
     ret = espnow_data_unlock();
     return ret;
@@ -94,21 +94,17 @@ esp_err_t espnow_data_update(uint8_t *buffer)
 
 void espnow_manager_send_cb(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
-    printf("Sent to MAC %02X:%02X:%02X:%02X:%02X:%02X - Status: %s\n",
-           mac_addr[0], mac_addr[1], mac_addr[2],
-           mac_addr[3], mac_addr[4], mac_addr[5],
-           status == ESP_NOW_SEND_SUCCESS ? "Success" : "Fail");
+    // printf("Sent to MAC %02X:%02X:%02X:%02X:%02X:%02X - Status: %s\n",
+    //        mac_addr[0], mac_addr[1], mac_addr[2],
+    //        mac_addr[3], mac_addr[4], mac_addr[5],
+    //        status == ESP_NOW_SEND_SUCCESS ? "Success" : "Fail");
+    ;
 }
 
 void espnow_manager_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len)
 {
     uint8_t *mac = recv_info->src_addr;
-    printf("Received from MAC %02X:%02X:%02X:%02X:%02X:%02X: %.*s\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], len, (char *)data);
-    if (len < sizeof(espnow_queue_t))
-    {
-        ESP_LOGW(TAG, "Pacote inválido");
-        return;
-    }
+    // printf("Received from MAC %02X:%02X:%02X:%02X:%02X:%02X: %.*s\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], len, (char *)data);
 
     espnow_queue_t item = {0};
     item.data = malloc(len);
@@ -326,7 +322,7 @@ esp_err_t espnow_manager_send(uint8_t *data, uint32_t len)
 
     return ESP_OK;
 }
-
+    
 
 esp_err_t espnow_get_data(app_data_sensors_t *data)
 {
