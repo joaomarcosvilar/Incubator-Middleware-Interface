@@ -225,11 +225,11 @@ esp_err_t espnow_manager_init(void)
     // ESPNOW Peer
 
     // Show mac address in serial
-    uint8_t mac_l[6] = {0};
-    esp_read_mac(mac_l, ESP_MAC_WIFI_STA);
-    printf("Local MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
-           mac_l[0], mac_l[1], mac_l[2],
-           mac_l[3], mac_l[4], mac_l[5]);
+    // uint8_t mac_l[6] = {0};
+    // esp_read_mac(mac_l, ESP_MAC_WIFI_STA);
+    // printf("Local MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+    //        mac_l[0], mac_l[1], mac_l[2],
+    //        mac_l[3], mac_l[4], mac_l[5]);
 
     // Find mac address saved in file
     if (!(memcmp(g_espnow_manager_peer_mac, (uint8_t[6]){0}, 6)))

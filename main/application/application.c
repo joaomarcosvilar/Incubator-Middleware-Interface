@@ -103,7 +103,6 @@ int cmd_get(int argc, char **argv)
 {
     if (argc < 2)
     {
-        // printf("Usage: get key:index\n");
         return 1;
     }
 
@@ -111,7 +110,6 @@ int cmd_get(int argc, char **argv)
     char *sep = strchr(input, ':');
     if (!sep)
     {
-        // printf("Invalid format! Use key:index\n");
         return 1;
     }
 
@@ -123,7 +121,6 @@ int cmd_get(int argc, char **argv)
     esp_err_t ret = espnow_get_data(&data);
     if (ret != ESP_OK)
     {
-        // printf("Failed to get ESPNOW data (err=%d)\n", ret);
         return 1;
     }
 
@@ -133,10 +130,6 @@ int cmd_get(int argc, char **argv)
         {
             printf("%.2f\n", data.hum);
         }
-        // else
-        // {
-        // printf("Invalid index for humidity\n");
-        // }
     }
     else if (!strcmp(key, "temp"))
     {
@@ -144,10 +137,6 @@ int cmd_get(int argc, char **argv)
         {
             printf("%.2f\n", data.temp[index]);
         }
-        // else
-        // {
-        //     printf("Invalid index for temperature\n");
-        // }
     }
 
     return 0;
@@ -192,7 +181,8 @@ esp_err_t application_init(void)
     // Initialize console
     esp_console_repl_t *repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
-    repl_config.prompt = PROMPT_STR ">";
+    // repl_config.prompt = PROMPT_STR ">";
+    repl_config.prompt = NULL;
     repl_config.max_cmdline_length = 508;
 
     // Initialize nvs flash
