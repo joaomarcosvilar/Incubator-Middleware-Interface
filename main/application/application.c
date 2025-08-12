@@ -65,7 +65,7 @@ int cmd_set(int arg, char **argv)
 {
     if (argv < 2)
     {
-        printf("Usage: set key:value\n");
+        // printf("Usage: set key:value\n");
         return 1;
     }
 
@@ -73,16 +73,13 @@ int cmd_set(int arg, char **argv)
     char *sep = strchr(input, ':');
     if (!sep)
     {
-        printf("Invalid format! Use key:value\n");
+        // printf("Invalid format! Use key:value\n");
         return 1;
     }
 
     *sep = '\0'; // separa key e value
     const char *key = input;
     const char *value = sep + 1;
-
-    printf("Chave = %s\n", key);
-    printf("Valor = %s\n", value);
 
     app_data_lock();
 
@@ -96,7 +93,7 @@ int cmd_set(int arg, char **argv)
     }
     app_data_unlock();
 
-    ESP_LOGI(TAG, "Changed:\nperc_res = %d\npwm_hum = %d", g_app_data.perc_res, g_app_data.pwm_hum);
+    // ESP_LOGI(TAG, "Changed:\nperc_res = %d\npwm_hum = %d", g_app_data.perc_res, g_app_data.pwm_hum);
     espnow_manager_send((uint8_t *)&g_app_data, sizeof(g_app_data));
 
     return 0;
@@ -106,7 +103,7 @@ int cmd_get(int argc, char **argv)
 {
     if (argc < 2)
     {
-        printf("Usage: get key:index\n");
+        // printf("Usage: get key:index\n");
         return 1;
     }
 
@@ -114,7 +111,7 @@ int cmd_get(int argc, char **argv)
     char *sep = strchr(input, ':');
     if (!sep)
     {
-        printf("Invalid format! Use key:index\n");
+        // printf("Invalid format! Use key:index\n");
         return 1;
     }
 
@@ -126,7 +123,7 @@ int cmd_get(int argc, char **argv)
     esp_err_t ret = espnow_get_data(&data);
     if (ret != ESP_OK)
     {
-        printf("Failed to get ESPNOW data (err=%d)\n", ret);
+        // printf("Failed to get ESPNOW data (err=%d)\n", ret);
         return 1;
     }
 
@@ -136,10 +133,10 @@ int cmd_get(int argc, char **argv)
         {
             printf("%.2f\n", data.hum);
         }
-        else
-        {
-            printf("Invalid index for humidity\n");
-        }
+        // else
+        // {
+        // printf("Invalid index for humidity\n");
+        // }
     }
     else if (!strcmp(key, "temp"))
     {
@@ -147,14 +144,10 @@ int cmd_get(int argc, char **argv)
         {
             printf("%.2f\n", data.temp[index]);
         }
-        else
-        {
-            printf("Invalid index for temperature\n");
-        }
-    }
-    else
-    {
-        printf("Unknown key: %s\n", key);
+        // else
+        // {
+        //     printf("Invalid index for temperature\n");
+        // }
     }
 
     return 0;
@@ -169,15 +162,15 @@ esp_err_t app_register_cmd(void)
         .func = &cmd_set};
 
     esp_err_t ret = esp_console_cmd_register(&set);
-    if(ret!= ESP_OK)
+    if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG,"Failed register get cmd");
+        ESP_LOGE(TAG, "Failed register get cmd");
         return ret;
     }
 
     const esp_console_cmd_t get = {
         .command = "get",
-        .help = "",
+        .help = "Get values sensors ( set key_sensor:index)\n\ttemp -> array sensor temperature\n\thum -> array sensor humidity",
         .hint = NULL,
         .func = &cmd_get};
 
