@@ -237,7 +237,7 @@ esp_err_t espnow_manager_init(void)
         res = fs_search(ROOT_STORAGE_PATH, ESPNOW_FILE);
         if (res != ESP_ERR_NOT_FOUND)
         {
-            printf("Mac address not found. Please, write a address MAC (AA:BB:CC:DD:EE:FF):");
+            // printf("Mac address not found. Please, write a address MAC (AA:BB:CC:DD:EE:FF):");
             // TODO: stop initialization and wait cmd
             // res = espnow_manager_read_serial();
             // if (res != ESP_OK)
