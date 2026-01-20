@@ -8,5 +8,5 @@ global SerESP
     end
     
     percent = num2str(percent);
-    fprintf(SerESP, 'set perc_res:%s\n', percent);
+    fprintf(SerESP, 'set temp:%s\n', percent);
 end

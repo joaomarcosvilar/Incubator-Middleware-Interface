@@ -7,7 +7,7 @@ function umid = recebe_umidade(index)
    
     fprintf(SerESP, 'get hum:%s\n', index);
     
-    ler = strtrim(fscanf(SerESP, '%s')); % Retorno do echo do ESP32
+%    ler = strtrim(fscanf(SerESP, '%s')); % Retorno do echo do ESP32
 
     ler = strtrim(fscanf(SerESP, '%s')); % Retorno do valor requisitado
  

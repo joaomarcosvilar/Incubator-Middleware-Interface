@@ -8,5 +8,5 @@ global SerESP
     end
     
     percent = num2str(percent);
-    fprintf(SerESP, 'set pwm_hum:%s\n', percent);
+    fprintf(SerESP, 'set hum:%s\n', percent);
 end
