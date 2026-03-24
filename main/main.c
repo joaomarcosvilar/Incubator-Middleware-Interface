@@ -8,12 +8,13 @@
 
 void app_main(void)
 {
-    esp_err_t res = fs_init();
-    if (res != ESP_OK)
-    {
-        ESP_LOGE("MAIN", "Failed to init files manager (E: %s)", esp_err_to_name(res));
-        return;
-    }
+    esp_err_t res;
+    // esp_err_t res = fs_init();
+    // if (res != ESP_OK)
+    // {
+    //     ESP_LOGE("MAIN", "Failed to init files manager (E: %s)", esp_err_to_name(res));
+    //     return;
+    // }
 
     res = espnow_manager_init();
     if (res != ESP_OK)

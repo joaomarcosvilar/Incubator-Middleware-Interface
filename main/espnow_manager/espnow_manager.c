@@ -29,7 +29,14 @@
 
 #define ESPNOW_SEMAPHORE_TIMEOUT_TICKS 5 * 1000
 // D8:3B:DA:A4:06:9C
-static uint8_t g_espnow_manager_peer_mac[6] = {0xD8, 0x3B, 0xDA, 0xA4, 0x06, 0x9C};
+// static uint8_t g_espnow_manager_peer_mac[6] = {0xD8, 0x3B, 0xDA, 0xA4, 0x06, 0x9C};
+
+//  98:3D:AE:EB:F5:C0
+// static uint8_t g_espnow_manager_peer_mac[6] = {0x98, 0x3D, 0xAE, 0xEB, 0xF5, 0xC0};
+
+// Send all ESP
+static uint8_t g_espnow_manager_peer_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
 static QueueHandle_t espnow_queue;
 static TaskHandle_t espnow_task_handle;
 SemaphoreHandle_t espnow_sempr;
@@ -82,11 +89,14 @@ esp_err_t espnow_data_update(uint8_t *buffer)
     }
 
     memcpy(&g_espnow_data, buffer, sizeof(g_espnow_data));
+    // ESP_LOGI(TAG,"Updated: \n");
     // ESP_LOGI(TAG,"Sensor: \n hum=%.2f", g_espnow_data.hum);
     // for(int i = 0; i < TEMPERATURE_MAX_SENSOR_COUNT; i++)
     // {
     //     ESP_LOGI(TAG,"temp[%d]=%.2f", i, g_espnow_data.temp[i]);
     // }
+    // ESP_LOGI(TAG,"External: %.2f", g_espnow_data.temp_external);
+
 
     ret = espnow_data_unlock();
     return ret;
@@ -104,7 +114,7 @@ void espnow_manager_send_cb(const uint8_t *mac_addr, esp_now_send_status_t statu
 void espnow_manager_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len)
 {
     uint8_t *mac = recv_info->src_addr;
-    // printf("Received from MAC %02X:%02X:%02X:%02X:%02X:%02X: %.*s\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], len, (char *)data);
+    // printf("Received from MAC %02X:%02X:%02X:%02X:%02X:%02X %.*s\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], len, (char *)data);
 
     espnow_queue_t item = {0};
     item.data = malloc(len);
@@ -225,11 +235,11 @@ esp_err_t espnow_manager_init(void)
     // ESPNOW Peer
 
     // Show mac address in serial
-    // uint8_t mac_l[6] = {0};
-    // esp_read_mac(mac_l, ESP_MAC_WIFI_STA);
-    // printf("Local MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
-    //        mac_l[0], mac_l[1], mac_l[2],
-    //        mac_l[3], mac_l[4], mac_l[5]);
+    uint8_t mac_l[6] = {0};
+    esp_read_mac(mac_l, ESP_MAC_WIFI_STA);
+    printf("Local MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+           mac_l[0], mac_l[1], mac_l[2],
+           mac_l[3], mac_l[4], mac_l[5]);
 
     // Find mac address saved in file
     if (!(memcmp(g_espnow_manager_peer_mac, (uint8_t[6]){0}, 6)))

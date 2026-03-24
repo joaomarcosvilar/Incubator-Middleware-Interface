@@ -168,6 +168,16 @@ esp_err_t app_get_routine(char *dev, uint16_t num)
         printf("%.2f\n", buffer.temp[num]);
         fflush(stdout);
     }
+    else if(!strcmp(dev, "temp_ext"))
+    {
+        printf("%.2f\n", buffer.temp_external);
+        fflush(stdout);
+    }
+    else if(!strcmp(dev, "hum_ext"))
+    {
+        printf("%.2f\n", buffer.hum_external);
+        fflush(stdout);
+    }
     else
     {
         return ESP_ERR_INVALID_ARG;

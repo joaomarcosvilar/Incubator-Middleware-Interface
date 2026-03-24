@@ -1,7 +1,7 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
-#define TEMPERATURE_MAX_SENSOR_COUNT 10
+#define TEMPERATURE_MAX_SENSOR_COUNT 7
 
 esp_err_t application_init(void);
 
@@ -14,7 +14,9 @@ typedef struct
 typedef struct
 {
     float temp[TEMPERATURE_MAX_SENSOR_COUNT];
+    float temp_external;
     float hum;
+    float hum_external;
 } app_data_sensors_t;
 
 
