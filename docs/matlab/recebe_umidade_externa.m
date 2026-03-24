@@ -1,11 +1,11 @@
-function umid = recebe_umidade()
+function umid = recebe_umidade_externa()
     global SerESP
     flushinput(SerESP);
     
     % index = max(0, min(index, 1)); 
     % index = num2str(index);
    
-    fprintf(SerESP, 'get hum:0\n');
+    fprintf(SerESP, 'get hum_ext:0\n');
     
 %    ler = strtrim(fscanf(SerESP, '%s')); % Retorno do echo do ESP32
 

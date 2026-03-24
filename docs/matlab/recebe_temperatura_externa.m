@@ -1,20 +1,18 @@
-function umid = recebe_umidade()
+function temp = recebe_temperatura_externa()
     global SerESP
     flushinput(SerESP);
     
-    % index = max(0, min(index, 1)); 
-    % index = num2str(index);
    
-    fprintf(SerESP, 'get hum:0\n');
+    fprintf(SerESP, 'get temp_ext:0\n');
     
 %    ler = strtrim(fscanf(SerESP, '%s')); % Retorno do echo do ESP32
 
     ler = strtrim(fscanf(SerESP, '%s')); % Retorno do valor requisitado
  
-    umid = str2double(ler);
+    temp = str2double(ler);
     
-%     Modularização da umidade
-%     umid = umid / 100;
+%     Modularização da temperatura
+%     temp = (temp - 20)/25;
     
     flushoutput(SerESP);
 end
