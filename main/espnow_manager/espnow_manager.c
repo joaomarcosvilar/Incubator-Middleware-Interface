@@ -21,10 +21,10 @@
 
 #define TAG "ESPNOW"
 
-#define ESPNOW_QUEUE_LEN 5
+#define ESPNOW_QUEUE_LEN 10
 
 #define ESPNOW_TASK_NAME "espnow task"
-#define ESPNOW_TASK_STACK_SIZE 1024 * 2
+#define ESPNOW_TASK_STACK_SIZE 1024 * 4
 #define ESPNOW_TASK_PRIOR 2
 
 #define ESPNOW_SEMAPHORE_TIMEOUT_TICKS 5 * 1000
@@ -140,7 +140,11 @@ void espnow_task(void *args)
             {
                 espnow_data_update(buffer.data);
             }
-            free(buffer.data);
+
+            if (buffer.data != NULL) {
+                free(buffer.data);
+                buffer.data = NULL;
+            }
         }
     }
 }
@@ -310,8 +314,11 @@ esp_err_t espnow_manager_init(void)
 
 esp_err_t espnow_manager_send(uint8_t *data, uint32_t len)
 {
+    if (data == NULL || len == 0) return ESP_ERR_INVALID_ARG;
+
     uint8_t *buf_copy = malloc(len);
-    if (buf_copy == NULL) {
+    if (buf_copy == NULL)
+    {
         ESP_LOGE(TAG, "Failed to allocate memory for send buffer");
         return ESP_ERR_NO_MEM;
     }
@@ -320,19 +327,17 @@ esp_err_t espnow_manager_send(uint8_t *data, uint32_t len)
     espnow_queue_t buffer = {
         .data = buf_copy,
         .size = len,
-        .routine = ESPNOW_ROUTINE_SEND
-    };
+        .routine = ESPNOW_ROUTINE_SEND};
 
     if (xQueueSend(espnow_queue, &buffer, 0) != pdPASS)
     {
         ESP_LOGE(TAG, "Failed to send to queue");
-        free(buf_copy);  // liberar se falhar
+        free(buf_copy);
         return ESP_FAIL;
     }
 
     return ESP_OK;
 }
-    
 
 esp_err_t espnow_get_data(app_data_sensors_t *data)
 {
